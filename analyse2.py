@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -111,29 +112,22 @@ fig, ax = plt.subplots()
 ax.imshow(thr)
 plt.title("Step 4: Threshold (user parameter)")
 
+# Give unique label to each blob
 labels, num_labels = ndi.label(thr)
 
-# Keep only blobs that are more than 50% in the boundary
+
+# Create table of properties for all blobs
+extra_props = ('intensity_mean', 'eccentricity')
+props = pd.DataFrame(skimage.measure.regionprops_table(labels, intensity_image=masked_bg_sub, properties=('label', 'area', 'bbox') + extra_props, separator='_')).set_index('label')
+
+# Add areas inside the mask to each blob
 labels_in_mask = labels.copy()
 labels_in_mask[~mask] = 0
+areas_inside_mask = pd.DataFrame(skimage.measure.regionprops_table(labels_in_mask, properties=('label', 'area'), separator='_')).set_index('label')
+props = props.join(areas_inside_mask, rsuffix='_inside_mask')
 
-props = skimage.measure.regionprops(labels, intensity_image=masked_bg_sub)
-props_in_mask = skimage.measure.regionprops(labels_in_mask)
-
-def key_zipper(lst1, lst2, get_key):    
-    dict1 = {get_key(e): e for e in lst1}
-    dict2 = {get_key(e): e for e in lst2}
-
-    intersectKeys = [k for k in dict1.keys() if k in dict2.keys()]
-
-    output = []
-
-    for key in intersectKeys:
-        output.append((key, dict1[key], dict2[key]))
-
-    return output
-
-props_zipped = key_zipper(props, props_in_mask, lambda p: p.label)
+# Filter blobs
+props_filtered = props[(props['area_inside_mask'] > (props['area'] / 2)) & (props['area'] > 20)]
 
 
 def region_filter(prop, prop_in_mask):
@@ -145,17 +139,21 @@ image_label_overlay = skimage.color.label2rgb(labels, image=masked_bg_sub / 400,
 ax.imshow(image_label_overlay)
 ax.plot(boundary[:, 1], boundary[:, 0], linewidth=2, c='r');
 plt.title("Step 5: Select regions >50% inside boundary and >min_area")
-for label, prop, prop_in_mask in props_zipped:
-    # take regions with large enough areas
-    if region_filter(prop, prop_in_mask):
-        # draw rectangle around segmented area
-        minr, minc, maxr, maxc = prop.bbox
-        rect = matplotlib.patches.Rectangle((minc, minr), maxc - minc, maxr - minr,
-                                  fill=False, edgecolor='red', linewidth=1)
-        ax.add_patch(rect)
+for row in props_filtered.itertuples():
+    # draw rectangle around segmented area
+    minr, minc, maxr, maxc = row.bbox_0, row.bbox_1, row.bbox_2, row.bbox_3
+    rect = matplotlib.patches.Rectangle((minc, minr), maxc - minc, maxr - minr,
+                              fill=False, edgecolor='red', linewidth=1)
+    ax.add_patch(rect)
 
 # Maybe interesting parameters:
 # Area, circulatiry
 # total flourescence inside blob - maybe do this on fullres image?
+
+props_filtered['intensity_sum'] = props_filtered.intensity_mean * props_filtered.area
+
+props_filtered.plot.scatter(x='area', y='intensity_mean', c='eccentricity', colormap='viridis')
+
+props_filtered.to_csv(sys.argv[2])
 
 plt.show()
