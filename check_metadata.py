@@ -47,6 +47,8 @@ parsed = xmltodict.parse(file.metadata())
 #    exp_time = value['exp_time']
 #    print(f"{channel_name=} {exp_time=}")
 
+# TODO get pixel size
+
 channels = parsed['ImageDocument']['Metadata']['Information']['Image']['Dimensions']['Channels']['Channel']
 
 channels_recs = []

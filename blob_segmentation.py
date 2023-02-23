@@ -86,23 +86,24 @@ def histmax(data, bins, range=None):
     return bin_edges[max_idx] + (bin_edges[max_idx + 1] - bin_edges[max_idx]) / 2
 
 
-masked_area_background_intensity = histmax(lowres[3][mask], 200, range=(0, 1000))
+masked_area_background_intensity = np.array([histmax(lowres[i][mask], 200, range=(0, 1000)) for i in range(lowres.shape[0])])
 
-masked_bg_sub = lowres[3] - masked_area_background_intensity
+
+masked_bg_sub = lowres - masked_area_background_intensity[:, np.newaxis, np.newaxis]
 
 plt.figure()
-plt.hist(masked_bg_sub[mask], bins=1000)
+plt.hist(masked_bg_sub[3][mask], bins=1000)
 plt.axvline(x=0, c='r')
 plt.title("Step 2: Subtract average background intensity of the pixels inside the boundary")
 
 fig, ax = plt.subplots()
-ax.imshow(masked_bg_sub, clim=(0, 400))
+ax.imshow(masked_bg_sub[3], clim=(0, 400))
 plt.plot(boundary[:, 1], boundary[:, 0], 'r')
 plt.title("Step 2: Subtract average background intensity of the pixels inside the boundary")
 
 
 fp = skimage.morphology.disk(3)
-filtered = scipy.ndimage.median_filter(masked_bg_sub, footprint=fp)
+filtered = scipy.ndimage.median_filter(masked_bg_sub[3], footprint=fp)
 
 fig, ax = plt.subplots()
 ax.imshow(filtered, clim=(0, 400))
@@ -131,13 +132,17 @@ labels, num_labels = ndi.label(thr)
 
 # Create table of properties for all blobs
 extra_props = ('intensity_mean', 'eccentricity')
-props = pd.DataFrame(skimage.measure.regionprops_table(labels, intensity_image=masked_bg_sub, properties=('label', 'area', 'bbox') + extra_props, separator='_')).set_index('label')
+props = pd.DataFrame(skimage.measure.regionprops_table(labels, intensity_image=masked_bg_sub[3], properties=('label', 'area', 'bbox') + extra_props, separator='_')).set_index('label')
 
 # Add areas inside the mask to each blob
 labels_in_mask = labels.copy()
 labels_in_mask[~mask] = 0
 areas_inside_mask = pd.DataFrame(skimage.measure.regionprops_table(labels_in_mask, properties=('label', 'area'), separator='_')).set_index('label')
 props = props.join(areas_inside_mask, rsuffix='_inside_mask')
+
+# Add red channel info
+areas_inside_mask = pd.DataFrame(skimage.measure.regionprops_table(labels_in_mask, intensity_image=masked_bg_sub[2], properties=('label', 'intensity_mean'), separator='_')).set_index('label')
+props = props.join(areas_inside_mask, rsuffix='_red')
 
 # Filter blobs
 props_filtered = props[(props['area_inside_mask'] > (props['area'] / 2)) & (props['area'] > 20)]
@@ -148,7 +153,7 @@ def region_filter(prop, prop_in_mask):
     return prop.area > min_area and prop_in_mask.area > (prop.area / 2)
 
 fig, ax = plt.subplots()
-image_label_overlay = skimage.color.label2rgb(labels, image=masked_bg_sub / 400, bg_label=0)
+image_label_overlay = skimage.color.label2rgb(labels, image=masked_bg_sub[3] / 400, bg_label=0)
 ax.imshow(image_label_overlay)
 ax.plot(boundary[:, 1], boundary[:, 0], linewidth=2, c='r');
 plt.title("Step 5: Select regions >50% inside boundary and >min_area")
@@ -162,11 +167,17 @@ for row in props_filtered.itertuples():
 if args.debug_folder is not None:
     plt.savefig(os.path.join(args.debug_folder, '5_segmentation.png'))
 
+plt.figure()
+plt.imshow(masked_bg_sub[2], clim=(0, 400))
+plt.title("Red channel")
+
 # Maybe interesting parameters:
 # Area, circulatiry
 # total flourescence inside blob - maybe do this on fullres image?
 
 props_filtered['intensity_sum'] = props_filtered.intensity_mean * props_filtered.area
+props_filtered['intensity_sum_red'] = props_filtered.intensity_mean_red * props_filtered.area
+print(props_filtered)
 
 props_filtered.plot.scatter(x='area', y='intensity_mean', c='eccentricity', colormap='viridis')
 

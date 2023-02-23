@@ -5,6 +5,8 @@ data_path = Path('/opt/daria_microscopy/')
 source_directory = data_path / Path('Emile')
 source_files = [source_file.relative_to(source_directory) for source_file in source_directory.glob('**/*.czi') if not source_file.name.startswith('.')]
 
+DOIT_CONFIG = {'default_tasks': ['segmentation']}
+
 def dir_creator(path):
     def create_dir():
         path.parent.mkdir(parents=True, exist_ok=True)
