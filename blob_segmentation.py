@@ -10,13 +10,21 @@ import scipy
 import scipy.ndimage as ndi
 import czifile
 import sys
-
+import argparse
+import os
 from skimage.transform import downscale_local_mean
 
-filename = sys.argv[1]
+parser = argparse.ArgumentParser(prog = 'blob_segmentation.py')
+parser.add_argument('in_filename')
+parser.add_argument('-o', '--out_filename', required=False)
+parser.add_argument('-d', '--debug_folder', required=False)
+args = parser.parse_args()
+
+if args.debug_folder is not None:
+    os.mkdir(args.debug_folder)
 
 #fullres = czifile.imread(filename)
-fullres = np.load(filename)
+fullres = np.load(args.in_filename)
 fullres = fullres.squeeze()
 
 #partial = fullres[:, :2000, :2000]
@@ -28,7 +36,8 @@ downres_factor = 16
 def downscale_local_max(arr, factors):
     return skimage.measure.block_reduce(arr, block_size=factors, func=np.max, cval=0)
 
-lowres = downscale_local_mean(fullres, (1, downres_factor, downres_factor))
+#lowres = downscale_local_mean(fullres, (1, downres_factor, downres_factor))
+lowres = fullres
 
 
 def find_boundary(channel):
@@ -68,6 +77,8 @@ plt.figure()
 plt.imshow(lowres[1])
 plt.plot(boundary[:, 1], boundary[:, 0], linewidth=2, c='r');
 plt.title("Step 1: Find boundary")
+if args.debug_folder is not None:
+    plt.savefig(os.path.join(args.debug_folder, '1_boundary.png'))
 
 def histmax(data, bins, range=None):
     hist, bin_edges = np.histogram(data, bins=bins, range=range)
@@ -105,6 +116,8 @@ plt.hist(filtered[mask], bins=1000)
 plt.axvline(x=0, c='r')
 plt.axvline(x=threshold, c='g')
 plt.title("Step 4: Threshold (user parameter)")
+if args.debug_folder is not None:
+    plt.savefig(os.path.join(args.debug_folder, '4_threshold.png'))
 
 thr = filtered > threshold
 
@@ -131,7 +144,7 @@ props_filtered = props[(props['area_inside_mask'] > (props['area'] / 2)) & (prop
 
 
 def region_filter(prop, prop_in_mask):
-    min_area = 20
+    min_area = 10
     return prop.area > min_area and prop_in_mask.area > (prop.area / 2)
 
 fig, ax = plt.subplots()
@@ -146,6 +159,9 @@ for row in props_filtered.itertuples():
                               fill=False, edgecolor='red', linewidth=1)
     ax.add_patch(rect)
 
+if args.debug_folder is not None:
+    plt.savefig(os.path.join(args.debug_folder, '5_segmentation.png'))
+
 # Maybe interesting parameters:
 # Area, circulatiry
 # total flourescence inside blob - maybe do this on fullres image?
@@ -154,6 +170,8 @@ props_filtered['intensity_sum'] = props_filtered.intensity_mean * props_filtered
 
 props_filtered.plot.scatter(x='area', y='intensity_mean', c='eccentricity', colormap='viridis')
 
-props_filtered.to_csv(sys.argv[2])
+if args.out_filename is not None:
+    props_filtered.to_csv(args.out_filename)
 
-plt.show()
+if args.debug_folder is None:
+    plt.show()

@@ -5,10 +5,18 @@ import matplotlib
 import matplotlib.pyplot as plt
 import czifile
 import sys
+import argparse
+from skimage.transform import downscale_local_mean
 
-filename = sys.argv[1]
+parser = argparse.ArgumentParser(prog = 'background_subtract.py')
+parser.add_argument('in_filename')
+parser.add_argument('out_filename')
+parser.add_argument('-d', '--downres', type=int, default=1)
+args = parser.parse_args()
 
-file = czifile.CziFile(filename)
+file = czifile.CziFile(args.in_filename)
+
+#TODO get dimensions from file, don't hardcode. Not the same for all files
 
 # Order subblocks into lists by channel
 subblocks_by_channel = {}
@@ -49,6 +57,10 @@ def assemble_mosaic(blocks):
     return out
 
 assembled = assemble_mosaic(subblocks_with_channel)
+print(assembled.shape)
+
+downres_factor = args.downres
+lowres = downscale_local_mean(assembled, (1, 1, downres_factor, downres_factor, 1))
 
 # If we don't use exactly min as background estimation we should use a signed dtype for export
-np.save(sys.argv[2], assembled)
+np.save(args.out_filename, lowres)

@@ -25,6 +25,8 @@ in pkgs.mkShell rec {
         pypkgs.scipy
         pypkgs.scikitimage
         pypkgs.opencv4
+        pypkgs.pandas
+        pypkgs.xmltodict
         czifile
     ];
     QT_QPA_PLATFORM_PLUGIN_PATH = "${pkgs.qt5.qtbase.bin}/lib/qt-${pkgs.qt5.qtbase.version}/plugins/platforms";
