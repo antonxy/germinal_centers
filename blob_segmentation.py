@@ -21,23 +21,14 @@ parser.add_argument('-d', '--debug_folder', required=False)
 args = parser.parse_args()
 
 if args.debug_folder is not None:
-    os.mkdir(args.debug_folder)
+    try:
+        os.mkdir(args.debug_folder)
+    except FileExistsError:
+        pass
 
-#fullres = czifile.imread(filename)
-fullres = np.load(args.in_filename)
-fullres = fullres.squeeze()
+input_image = np.load(args.in_filename)
 
-#partial = fullres[:, :2000, :2000]
-#np.save('partial.npy', partial)
-#fullres = np.load('partial.npy')
-
-downres_factor = 16
-
-def downscale_local_max(arr, factors):
-    return skimage.measure.block_reduce(arr, block_size=factors, func=np.max, cval=0)
-
-#lowres = downscale_local_mean(fullres, (1, downres_factor, downres_factor))
-lowres = fullres
+print(f"Image resolution: {input_image.shape}")
 
 
 def find_boundary(channel):
@@ -68,13 +59,14 @@ def find_boundary(channel):
     largest = labels == max_area_label
     
     # convert binary image to contour line
-    contours = skimage.measure.find_contours(largest, 0.5)
+    # padded so that contour is closed if it touched the image edge
+    contours = skimage.measure.find_contours(np.pad(largest, [(1, 1), (1, 1)]), 0.5) - np.array([1.0, 1.0])
     return contours[0], largest 
 
-boundary, mask = find_boundary(lowres[1])
+boundary, mask = find_boundary(input_image[1])
 
 plt.figure()
-plt.imshow(lowres[1])
+plt.imshow(input_image[1])
 plt.plot(boundary[:, 1], boundary[:, 0], linewidth=2, c='r');
 plt.title("Step 1: Find boundary")
 if args.debug_folder is not None:
@@ -83,40 +75,56 @@ if args.debug_folder is not None:
 def histmax(data, bins, range=None):
     hist, bin_edges = np.histogram(data, bins=bins, range=range)
     max_idx = np.argmax(hist)
-    return bin_edges[max_idx] + (bin_edges[max_idx + 1] - bin_edges[max_idx]) / 2
+    max_val = hist[max_idx]
 
+    def x_of_idx(idx):
+        return bin_edges[idx] + (bin_edges[idx + 1] - bin_edges[idx]) / 2
 
-masked_area_background_intensity = np.array([histmax(lowres[i][mask], 200, range=(0, 1000)) for i in range(lowres.shape[0])])
+    x_of_maximum = x_of_idx(max_idx)
 
+    return x_of_maximum
 
-masked_bg_sub = lowres - masked_area_background_intensity[:, np.newaxis, np.newaxis]
+masked_area_background_intensity = np.array([histmax(input_image[i][mask], 200, range=(0, 1000)) for i in range(input_image.shape[0])])
+masked_bg_sub = input_image - masked_area_background_intensity[:, np.newaxis, np.newaxis]
 
 plt.figure()
 plt.hist(masked_bg_sub[3][mask], bins=1000)
 plt.axvline(x=0, c='r')
 plt.title("Step 2: Subtract average background intensity of the pixels inside the boundary")
+if args.debug_folder is not None:
+    plt.savefig(os.path.join(args.debug_folder, '2_sub_hist.png'))
 
 fig, ax = plt.subplots()
 ax.imshow(masked_bg_sub[3], clim=(0, 400))
 plt.plot(boundary[:, 1], boundary[:, 0], 'r')
 plt.title("Step 2: Subtract average background intensity of the pixels inside the boundary")
+if args.debug_folder is not None:
+    plt.savefig(os.path.join(args.debug_folder, '2_sub_img.png'))
 
 
 fp = skimage.morphology.disk(3)
 filtered = scipy.ndimage.median_filter(masked_bg_sub[3], footprint=fp)
 
+def threshold_mad(im, k=4):
+    med = np.median(im)
+    mad = np.median(np.abs(im.astype(np.float32) - med))
+    return med + mad * k * 1.4826
+
 fig, ax = plt.subplots()
 ax.imshow(filtered, clim=(0, 400))
 plt.title("Step 3: Median filter")
+if args.debug_folder is not None:
+    plt.savefig(os.path.join(args.debug_folder, '3_median.png'))
 
 
-threshold = 100
+threshold = threshold_mad(filtered[mask], k=4)
+print(f"{threshold=}")
 
 plt.figure()
 plt.hist(filtered[mask], bins=1000)
 plt.axvline(x=0, c='r')
 plt.axvline(x=threshold, c='g')
-plt.title("Step 4: Threshold (user parameter)")
+plt.title("Step 4: Threshold (MAD method)")
 if args.debug_folder is not None:
     plt.savefig(os.path.join(args.debug_folder, '4_threshold.png'))
 
@@ -124,7 +132,9 @@ thr = filtered > threshold
 
 fig, ax = plt.subplots()
 ax.imshow(thr)
-plt.title("Step 4: Threshold (user parameter)")
+plt.title("Step 4: Thresholded image")
+if args.debug_folder is not None:
+    plt.savefig(os.path.join(args.debug_folder, '4_threshold_img.png'))
 
 # Give unique label to each blob
 labels, num_labels = ndi.label(thr)
@@ -143,6 +153,8 @@ props = props.join(areas_inside_mask, rsuffix='_inside_mask')
 # Add red channel info
 areas_inside_mask = pd.DataFrame(skimage.measure.regionprops_table(labels_in_mask, intensity_image=masked_bg_sub[2], properties=('label', 'intensity_mean'), separator='_')).set_index('label')
 props = props.join(areas_inside_mask, rsuffix='_red')
+# TODO maybe count red channel at edge of the blob and red channel inside
+# There should be some on the edge but less at the center
 
 # Filter blobs
 props_filtered = props[(props['area_inside_mask'] > (props['area'] / 2)) & (props['area'] > 20)]
@@ -170,6 +182,8 @@ if args.debug_folder is not None:
 plt.figure()
 plt.imshow(masked_bg_sub[2], clim=(0, 400))
 plt.title("Red channel")
+if args.debug_folder is not None:
+    plt.savefig(os.path.join(args.debug_folder, '6_red.png'))
 
 # Maybe interesting parameters:
 # Area, circulatiry
