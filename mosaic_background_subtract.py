@@ -7,16 +7,39 @@ import czifile
 import sys
 import argparse
 from skimage.transform import downscale_local_mean
+import xmltodict
 
 parser = argparse.ArgumentParser(prog = 'background_subtract.py')
 parser.add_argument('in_filename')
 parser.add_argument('out_filename')
 parser.add_argument('-d', '--downres', type=int, default=1)
+parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
 file = czifile.CziFile(args.in_filename)
 
-#TODO get dimensions from file, don't hardcode. Not the same for all files
+def parse_metadata(metadata):
+    parsed = xmltodict.parse(file.metadata())
+
+    # TODO get pixel size
+
+    channels = parsed['ImageDocument']['Metadata']['Information']['Image']['Dimensions']['Channels']['Channel']
+
+    channels_recs = []
+    for channel in channels:
+        channel_id = channel['@Id']
+        channel_name = channel['@Name']
+        exp_time = channel['ExposureTime']
+        light_intensity = channel['LightSourcesSettings']['LightSourceSettings']['Intensity']
+        channels_recs.append({'id': channel_id, 'name': channel_name, 'exp_time': exp_time, 'light_intensity': light_intensity})
+    return channels_recs
+
+metadata = parse_metadata(file.metadata())
+
+# Check that the order of dimensions in the file is as assumed
+print(f"{file.axes=}")
+assert file.axes == "SCYX0"
+
 
 # Order subblocks into lists by channel
 subblocks_by_channel = {}
@@ -34,6 +57,11 @@ def estimate_background(blocks):
     # TODO blur, median filter or something
     return np.min(data, axis=0)
 background = {k: estimate_background(blocks) for k, blocks in subblocks_by_channel.items()}
+
+if args.debug:
+    for k, v in background.items():
+        plt.figure()
+        plt.imshow(v.squeeze())
 
 # (channel, subblock) for all subblocks
 subblocks_with_channel = []
@@ -59,8 +87,27 @@ def assemble_mosaic(blocks):
 assembled = assemble_mosaic(subblocks_with_channel)
 print(assembled.shape)
 
+# Normalize the layout of the array
+# Dimensions should be (channel, y, x)
+assembled = assembled.squeeze()
+assert len(assembled.shape) == 3
+assert assembled.shape[0] == 4
+
+def reorder_channels(data, original_channels, desired_channels, remappings):
+    remapped_original = [remappings.get(channel, channel) for channel in original_channels]
+    ordering = [remapped_original.index(channel) for channel in desired_channels]
+    return data[ordering, :, :]
+
+# Channels should be always in the same order (dapi, blue, red, green)
+original_channel_order = [channel['name'] for channel in metadata]
+print(f"{original_channel_order=}")
+assembled = reorder_channels(assembled, original_channel_order, ["DAPI", "AF488", "AF546", "AF647"], {"AF594": "AF546"})
+
 downres_factor = args.downres
-lowres = downscale_local_mean(assembled, (1, 1, downres_factor, downres_factor, 1))
+lowres = downscale_local_mean(assembled, (1, downres_factor, downres_factor))
 
 # If we don't use exactly min as background estimation we should use a signed dtype for export
 np.save(args.out_filename, lowres)
+
+if args.debug:
+    plt.show()
