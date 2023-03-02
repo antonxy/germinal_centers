@@ -142,7 +142,7 @@ labels, num_labels = ndi.label(thr)
 
 # Create table of properties for all blobs
 extra_props = ('intensity_mean', 'eccentricity')
-props = pd.DataFrame(skimage.measure.regionprops_table(labels, intensity_image=masked_bg_sub[3], properties=('label', 'area', 'bbox') + extra_props, separator='_')).set_index('label')
+props = pd.DataFrame(skimage.measure.regionprops_table(labels, intensity_image=masked_bg_sub[3], properties=('label', 'area', 'bbox', 'image') + extra_props, separator='_')).set_index('label')
 
 # Add areas inside the mask to each blob
 labels_in_mask = labels.copy()
@@ -157,15 +157,22 @@ props = props.join(areas_inside_mask, rsuffix='_red')
 # There should be some on the edge but less at the center
 
 # Filter blobs
-props_filtered = props[(props['area_inside_mask'] > (props['area'] / 2)) & (props['area'] > 20)]
+props_filtered = props[(props['area_inside_mask'] > (props['area'] / 2)) & (props['area'] > 50)]
 
 
-def region_filter(prop, prop_in_mask):
-    min_area = 10
-    return prop.area > min_area and prop_in_mask.area > (prop.area / 2)
+# Keep only the selected labels in the label image
+def select_labels(labels, labels_to_keep, regionprops):
+    mask = np.zeros(labels.shape, dtype=bool)
+    for label in labels_to_keep:
+        row = regionprops.loc[label]
+        minr, minc, maxr, maxc = row.bbox_0, row.bbox_1, row.bbox_2, row.bbox_3
+        mask[minr:maxr,minc:maxc][row.image] = True
+    return labels * mask
+
+labels_selected = select_labels(labels, props_filtered.index, props)
 
 fig, ax = plt.subplots()
-image_label_overlay = skimage.color.label2rgb(labels, image=masked_bg_sub[3] / 400, bg_label=0)
+image_label_overlay = skimage.color.label2rgb(labels_selected, image=masked_bg_sub[3] / 400, bg_label=0)
 ax.imshow(image_label_overlay)
 ax.plot(boundary[:, 1], boundary[:, 0], linewidth=2, c='r');
 plt.title("Step 5: Select regions >50% inside boundary and >min_area")
