@@ -36,27 +36,6 @@ def task_bg_sub_and_downscale():
             'uptodate': [config_changed(bg_sub_config)],
         }
 
-meta_config = {
-}
-
-def task_meta():
-    output_directory = data_path / Path('meta')
-    py_file = Path('./check_metadata.py')
-
-    for source_file in source_files:
-        input_file = source_directory / source_file
-        encoded_file = output_directory / source_file.with_suffix('.csv')
-        yield {
-            'name': source_file,
-            'actions': [
-                dir_creator(encoded_file),
-                ['python3', py_file, input_file, '-c', encoded_file] 
-            ],
-            'file_dep': [py_file, input_file],
-            'targets': [encoded_file],
-            'uptodate': [config_changed(meta_config)],
-        }
-
 segmentation_config = {
 }
 
