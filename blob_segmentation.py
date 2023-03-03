@@ -12,12 +12,15 @@ import czifile
 import sys
 import argparse
 import os
+import ast
+from pathlib import Path
 from skimage.transform import downscale_local_mean
 
 parser = argparse.ArgumentParser(prog = 'blob_segmentation.py')
 parser.add_argument('in_filename')
 parser.add_argument('-o', '--out_filename', required=False)
 parser.add_argument('-d', '--debug_folder', required=False)
+parser.add_argument('--reference', required=False)
 args = parser.parse_args()
 
 if args.debug_folder is not None:
@@ -29,6 +32,10 @@ if args.debug_folder is not None:
 input_image = np.load(args.in_filename)
 
 print(f"Image resolution: {input_image.shape}")
+
+reference = None
+if args.reference is not None:
+    reference = ast.literal_eval(Path(args.reference).read_text())
 
 
 def find_boundary(channel):
@@ -175,6 +182,8 @@ fig, ax = plt.subplots()
 image_label_overlay = skimage.color.label2rgb(labels_selected, image=masked_bg_sub[3] / 400, bg_label=0)
 ax.imshow(image_label_overlay)
 ax.plot(boundary[:, 1], boundary[:, 0], linewidth=2, c='r');
+if reference is not None:
+    ax.scatter([x for x, y in reference], [y for x, y in reference], c='r')
 plt.title("Step 5: Select regions >50% inside boundary and >min_area")
 for row in props_filtered.itertuples():
     # draw rectangle around segmented area
