@@ -28,6 +28,7 @@ in pkgs.mkShell rec {
         pypkgs.pandas
         pypkgs.xmltodict
         pypkgs.doit
+        pypkgs.seaborn
         czifile
     ];
     QT_QPA_PLATFORM_PLUGIN_PATH = "${pkgs.qt5.qtbase.bin}/lib/qt-${pkgs.qt5.qtbase.version}/plugins/platforms";
