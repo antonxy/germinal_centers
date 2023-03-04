@@ -32,6 +32,7 @@ if args.debug_folder is not None:
 input_image = np.load(args.in_filename)
 
 print(f"Image resolution: {input_image.shape}")
+print(f"Image data type: {input_image.dtype}")
 
 reference = None
 if args.reference is not None:
@@ -93,7 +94,7 @@ def histmax(data, bins, range=None):
 
     return x_of_maximum
 
-masked_area_background_intensity = np.array([histmax(input_image[i][mask], 200, range=(0, 1000)) for i in range(input_image.shape[0])])
+masked_area_background_intensity = np.array([histmax(input_image[i][mask], 500, range=(0, np.max(input_image[i][mask]) / 3)) for i in range(input_image.shape[0])])
 masked_bg_sub = input_image - masked_area_background_intensity[:, np.newaxis, np.newaxis]
 
 plt.figure()
