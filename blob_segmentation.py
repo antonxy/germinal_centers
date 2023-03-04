@@ -207,12 +207,14 @@ if args.debug_folder is not None:
 
 props_filtered['intensity_sum'] = props_filtered.intensity_mean * props_filtered.area
 props_filtered['intensity_sum_red'] = props_filtered.intensity_mean_red * props_filtered.area
-print(props_filtered)
 
-props_filtered.plot.scatter(x='area', y='intensity_mean', c='eccentricity', colormap='viridis')
+export_columns = ['area', 'eccentricity', 'intensity_mean', 'intensity_sum', 'intensity_mean_red', 'intensity_sum_red']
+props_export = props_filtered[export_columns]
+
+print(props_export)
 
 if args.out_filename is not None:
-    props_filtered.to_csv(args.out_filename)
+    props_export.to_csv(args.out_filename)
 
 if args.debug_folder is None:
     plt.show()
