@@ -37,6 +37,8 @@ reference = None
 if args.reference is not None:
     reference = ast.literal_eval(Path(args.reference).read_text())
 
+def auto_clim(img):
+    return np.percentile(img, (2, 98))
 
 def find_boundary(channel):
     # Blur the image to ignore small lines and stuff
@@ -102,7 +104,7 @@ if args.debug_folder is not None:
     plt.savefig(os.path.join(args.debug_folder, '2_sub_hist.png'))
 
 fig, ax = plt.subplots()
-ax.imshow(masked_bg_sub[3], clim=(0, 400))
+ax.imshow(masked_bg_sub[3], clim=auto_clim(masked_bg_sub[3]))
 plt.plot(boundary[:, 1], boundary[:, 0], 'r')
 plt.title("Step 2: Subtract average background intensity of the pixels inside the boundary")
 if args.debug_folder is not None:
@@ -118,7 +120,7 @@ def threshold_mad(im, k=4):
     return med + mad * k * 1.4826
 
 fig, ax = plt.subplots()
-ax.imshow(filtered, clim=(0, 400))
+ax.imshow(filtered, clim=auto_clim(filtered))
 plt.title("Step 3: Median filter")
 if args.debug_folder is not None:
     plt.savefig(os.path.join(args.debug_folder, '3_median.png'))
@@ -179,7 +181,7 @@ def select_labels(labels, labels_to_keep, regionprops):
 labels_selected = select_labels(labels, props_filtered.index, props)
 
 fig, ax = plt.subplots()
-image_label_overlay = skimage.color.label2rgb(labels_selected, image=masked_bg_sub[3] / 400, bg_label=0)
+image_label_overlay = skimage.color.label2rgb(labels_selected, image=masked_bg_sub[3] / threshold / 3, bg_label=0)
 ax.imshow(image_label_overlay)
 ax.plot(boundary[:, 1], boundary[:, 0], linewidth=2, c='r');
 if reference is not None:
@@ -196,7 +198,7 @@ if args.debug_folder is not None:
     plt.savefig(os.path.join(args.debug_folder, '5_segmentation.png'))
 
 plt.figure()
-plt.imshow(masked_bg_sub[2], clim=(0, 400))
+plt.imshow(masked_bg_sub[2], clim=auto_clim(masked_bg_sub[2]))
 plt.title("Red channel")
 if args.debug_folder is not None:
     plt.savefig(os.path.join(args.debug_folder, '6_red.png'))
