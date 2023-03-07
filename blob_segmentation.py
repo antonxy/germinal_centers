@@ -13,14 +13,15 @@ import sys
 import argparse
 import os
 import ast
-from pathlib import Path
+import pathlib
 from skimage.transform import downscale_local_mean
+import json
 
 parser = argparse.ArgumentParser(prog = 'blob_segmentation.py')
-parser.add_argument('in_filename')
-parser.add_argument('-o', '--out_filename', required=False)
-parser.add_argument('-d', '--debug_folder', required=False)
-parser.add_argument('--reference', required=False)
+parser.add_argument('in_filename', type=pathlib.Path)
+parser.add_argument('-o', '--out_filename', type=pathlib.Path, required=False)
+parser.add_argument('-d', '--debug_folder', type=pathlib.Path, required=False)
+parser.add_argument('--reference', type=pathlib.Path, required=False)
 args = parser.parse_args()
 
 if args.debug_folder is not None:
@@ -30,13 +31,17 @@ if args.debug_folder is not None:
         pass
 
 input_image = np.load(args.in_filename)
+with open(args.in_filename.with_suffix('.json'), 'r') as f:
+    metadata = json.load(f)
+
+pixel_size = metadata['pixel_size_um']
 
 print(f"Image resolution: {input_image.shape}")
 print(f"Image data type: {input_image.dtype}")
 
 reference = None
 if args.reference is not None:
-    reference = ast.literal_eval(Path(args.reference).read_text())
+    reference = ast.literal_eval(args.reference.read_text())
 
 def auto_clim(img):
     return np.percentile(img, (2, 98))
@@ -166,8 +171,12 @@ props = props.join(areas_inside_mask, rsuffix='_red')
 # TODO maybe count red channel at edge of the blob and red channel inside
 # There should be some on the edge but less at the center
 
+# Remove blobs outside boundary
+props = props[(props['area_inside_mask'] > (props['area'] / 2))]
 # Filter blobs
-props_filtered = props[(props['area_inside_mask'] > (props['area'] / 2)) & (props['area'] > 50)]
+props_filtered = props[
+    (props['area'] * pixel_size * pixel_size > 2000) &
+]
 
 
 # Keep only the selected labels in the label image
@@ -213,6 +222,8 @@ props_filtered['intensity_sum_red'] = props_filtered.intensity_mean_red * props_
 
 export_columns = ['area', 'eccentricity', 'intensity_mean', 'intensity_sum', 'intensity_mean_red', 'intensity_sum_red']
 props_export = props_filtered[export_columns]
+# Convert units to um
+props_export['area'] = props_export['area'] * (pixel_size * pixel_size)
 
 print(props_export)
 
