@@ -17,6 +17,9 @@ import pathlib
 from skimage.transform import downscale_local_mean
 import json
 
+# disable SettingWithCopyWarning which is mostly false positives
+pd.options.mode.chained_assignment = None
+
 parser = argparse.ArgumentParser(prog = 'blob_segmentation.py')
 parser.add_argument('in_filename', type=pathlib.Path)
 parser.add_argument('-o', '--out_filename', type=pathlib.Path, required=False)
@@ -156,7 +159,7 @@ labels, num_labels = ndi.label(thr)
 
 
 # Create table of properties for all blobs
-extra_props = ('intensity_mean', 'eccentricity')
+extra_props = ('intensity_mean', 'eccentricity', 'feret_diameter_max', 'equivalent_diameter_area', 'centroid')
 props = pd.DataFrame(skimage.measure.regionprops_table(labels, intensity_image=masked_bg_sub[3], properties=('label', 'area', 'bbox', 'image') + extra_props, separator='_')).set_index('label')
 
 # Add areas inside the mask to each blob
@@ -173,9 +176,14 @@ props = props.join(areas_inside_mask, rsuffix='_red')
 
 # Remove blobs outside boundary
 props = props[(props['area_inside_mask'] > (props['area'] / 2))]
+
+props['elongation'] = props.feret_diameter_max / props.equivalent_diameter_area
+props['total_area'] = np.count_nonzero(mask)
+
 # Filter blobs
 props_filtered = props[
     (props['area'] * pixel_size * pixel_size > 2000) &
+    (props['elongation'] < 2)
 ]
 
 
@@ -213,17 +221,14 @@ plt.title("Red channel")
 if args.debug_folder is not None:
     plt.savefig(os.path.join(args.debug_folder, '6_red.png'))
 
-# Maybe interesting parameters:
-# Area, circulatiry
-# total flourescence inside blob - maybe do this on fullres image?
-
 props_filtered['intensity_sum'] = props_filtered.intensity_mean * props_filtered.area
 props_filtered['intensity_sum_red'] = props_filtered.intensity_mean_red * props_filtered.area
 
-export_columns = ['area', 'eccentricity', 'intensity_mean', 'intensity_sum', 'intensity_mean_red', 'intensity_sum_red']
+export_columns = ['area', 'eccentricity', 'elongation', 'intensity_mean', 'intensity_sum', 'intensity_mean_red', 'intensity_sum_red', 'total_area']
 props_export = props_filtered[export_columns]
 # Convert units to um
 props_export['area'] = props_export['area'] * (pixel_size * pixel_size)
+props_export['total_area'] = props_export['total_area'] * (pixel_size * pixel_size)
 
 print(props_export)
 
