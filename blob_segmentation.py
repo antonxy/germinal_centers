@@ -23,7 +23,8 @@ import traceback
 pd.options.mode.chained_assignment = None
 
 def process_image(input_path, metadata_path, boundary_path, blob_csv_path, show_debug = False, save_debug_path = None):
-    tools.create_dir_for_path(save_debug_path)
+    if save_debug_path is not None:
+        tools.create_dir_for_path(save_debug_path / "something")
 
     input_image = np.load(input_path)
     with open(metadata_path, 'r') as f:
@@ -77,7 +78,7 @@ def process_image(input_path, metadata_path, boundary_path, blob_csv_path, show_
     plt.axvline(x=0, c='r')
     plt.title("Step 2: Subtract average background intensity of the pixels inside the boundary")
     if save_debug_path is not None:
-        plt.savefig(os.path.join(args.debug_folder, '2_sub_hist.png'))
+        plt.savefig(save_debug_path / '2_sub_hist.png')
 
     fig, ax = plt.subplots()
     ax.imshow(masked_bg_sub[3], clim=auto_clim(masked_bg_sub[3]))
@@ -85,7 +86,7 @@ def process_image(input_path, metadata_path, boundary_path, blob_csv_path, show_
         plt.plot(boundary[:, 1], boundary[:, 0], linewidth=2, c='r');
     plt.title("Step 2: Subtract average background intensity of the pixels inside the boundary")
     if save_debug_path is not None:
-        plt.savefig(os.path.join(args.debug_folder, '2_sub_img.png'))
+        plt.savefig(save_debug_path / '2_sub_img.png')
 
 
     fp = skimage.morphology.disk(3)
@@ -100,7 +101,7 @@ def process_image(input_path, metadata_path, boundary_path, blob_csv_path, show_
     ax.imshow(filtered, clim=auto_clim(filtered))
     plt.title("Step 3: Median filter")
     if save_debug_path is not None:
-        plt.savefig(os.path.join(args.debug_folder, '3_median.png'))
+        plt.savefig(save_debug_path / '3_median.png')
 
 
     threshold = threshold_mad(filtered[mask], k=4)
@@ -112,7 +113,7 @@ def process_image(input_path, metadata_path, boundary_path, blob_csv_path, show_
     plt.axvline(x=threshold, c='g')
     plt.title("Step 4: Threshold (MAD method)")
     if save_debug_path is not None:
-        plt.savefig(os.path.join(args.debug_folder, '4_threshold.png'))
+        plt.savefig(save_debug_path / '4_threshold.png')
 
     thr = filtered > threshold
 
@@ -120,7 +121,7 @@ def process_image(input_path, metadata_path, boundary_path, blob_csv_path, show_
     ax.imshow(thr)
     plt.title("Step 4: Thresholded image")
     if save_debug_path is not None:
-        plt.savefig(os.path.join(args.debug_folder, '4_threshold_img.png'))
+        plt.savefig(save_debug_path / '4_threshold_img.png')
 
     # Give unique label to each blob
     labels, num_labels = ndi.label(thr)
@@ -182,13 +183,13 @@ def process_image(input_path, metadata_path, boundary_path, blob_csv_path, show_
         ax.add_patch(rect)
 
     if save_debug_path is not None:
-        plt.savefig(os.path.join(args.debug_folder, '5_segmentation.png'))
+        plt.savefig(save_debug_path / '5_segmentation.png')
 
     plt.figure()
     plt.imshow(masked_bg_sub[2], clim=auto_clim(masked_bg_sub[2]))
     plt.title("Red channel")
     if save_debug_path is not None:
-        plt.savefig(os.path.join(args.debug_folder, '6_red.png'))
+        plt.savefig(save_debug_path / '6_red.png')
 
     props_filtered['intensity_sum'] = props_filtered.intensity_mean * props_filtered.area
     props_filtered['intensity_sum_red'] = props_filtered.intensity_mean_red * props_filtered.area
@@ -219,6 +220,7 @@ def main():
     parser.add_argument('--only-new', action='store_true')
     parser.add_argument('--skip-fail', action='store_true')
     parser.add_argument('--show-debug', action='store_true')
+    parser.add_argument('--store-debug', action='store_true')
     args = parser.parse_args()
 
     for filenames in tools.get_files(args.in_filename):
@@ -226,7 +228,7 @@ def main():
             continue
         print(f"Processing {filenames.bg_sub}")
         try:
-            process_image(filenames.bg_sub, filenames.metadata, filenames.mask_polygon, filenames.blob_csv, args.show_debug)
+            process_image(filenames.bg_sub, filenames.metadata, filenames.mask_polygon, filenames.blob_csv, args.show_debug, filenames.segmentation_debug if args.store_debug else None)
         except Exception as e:
             traceback.print_exc()
             if not args.skip_fail:

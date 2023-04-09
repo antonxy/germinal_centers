@@ -9,6 +9,7 @@ class Filenames:
     mask_polygon : Path
     selection : Path
     blob_csv: Path
+    segmentation_debug: Path
 
 def get_files(czifiles = None):
     data_path = Path('/opt/daria_microscopy/')
@@ -31,8 +32,8 @@ def get_files(czifiles = None):
         bg_sub = processed_subdir / Path('background_subtracted.npy')
         metadata = processed_subdir / Path('metadata.json')
         blob_csv = processed_subdir / Path('blobs.csv')
-        yield Filenames(czi = czifile, bg_sub = bg_sub, metadata = metadata, mask_polygon = mask_polygon, selection = selection, blob_csv = blob_csv)
+        segmentation_debug = processed_subdir / Path('segmentation_debug')
+        yield Filenames(czi = czifile, bg_sub = bg_sub, metadata = metadata, mask_polygon = mask_polygon, selection = selection, blob_csv = blob_csv, segmentation_debug = segmentation_debug)
 
 def create_dir_for_path(path):
-    if path is not None:
-        path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
