@@ -3,7 +3,7 @@ input/
 	<mouse line> <mouse number>/
 		<mouse line> <mouse number> <cutting number>.czi
 		<mouse line> <mouse number> <cutting number>/
-			mask_polygon.npy
+			mask_polygon.npz
 			selection.json
 
 processed/
