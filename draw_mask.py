@@ -46,7 +46,11 @@ def find_boundary(channel):
     # convert binary image to contour line
     # padded so that contour is closed if it touched the image edge
     contours = skimage.measure.find_contours(np.pad(largest, [(1, 1), (1, 1)]), 0.5) - np.array([1.0, 1.0])
-    return contours[0], largest 
+
+    # Simplify the polygon
+    contours_simple = skimage.measure.approximate_polygon(contours[0], tolerance = 2)
+
+    return contours_simple, largest 
 
 
 
