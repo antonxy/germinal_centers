@@ -22,10 +22,11 @@ def get_files(czifiles = None):
     for source_file in source_files:
         czifile = source_directory / source_file
         source_subdir = source_directory / source_file.with_suffix('')
-        mask_polygon = source_subdir / Path('mask_polygon.npy')
+        processed_subdir = processed_directory / source_file.with_suffix('')
+
+        mask_polygon = source_subdir / Path('mask_polygons.npz')
         selection = source_subdir / Path('selection.json')
 
-        processed_subdir = processed_directory / source_file.with_suffix('')
         bg_sub = processed_subdir / Path('background_subtracted.npy')
         metadata = processed_subdir / Path('metadata.json')
         yield Filenames(czi = czifile, bg_sub = bg_sub, metadata = metadata, mask_polygon = mask_polygon, selection = selection)

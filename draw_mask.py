@@ -224,31 +224,52 @@ class PolygonInteractor:
 
 
 def process_image(in_path, out_path):
+    interactors = []
+    def boundary_window(image, boundary):
+
+        poly = Polygon(boundary[:, [1, 0]], animated=True, hatch='x', fill=False)
+
+        fig, ax = plt.subplots()
+        ax.imshow(input_image[1], clim=auto_clim(input_image[1]))
+        ax.add_patch(poly)
+        p = PolygonInteractor(ax, poly)
+        interactors.append(p)
+
+        def on_key_press(event):
+            if event.key == 'q':
+                plt.close('all')
+            if event.key == 'w':
+                print(f"Save {out_path}")
+                tools.create_dir_for_path(out_path)
+                boundaries = [p.poly.xy[:, [1, 0]] for p in interactors]
+                np.savez(out_path, *boundaries)
+                plt.close('all')
+            if event.key == 'x':
+                boundary, _ = find_boundary(input_image[1])
+                poly.set_xy(boundary[:, [1, 0]])
+                p.line.set_data(zip(*p.poly.xy))
+                p.canvas.draw_idle()
+            if event.key == '+':
+                boundary_window(image, np.zeros((0, 2)))
+                plt.show()
+            if event.key == '-':
+                interactors.remove(p)
+                plt.close(fig)
+        fig.canvas.mpl_connect('key_press_event', on_key_press)
+
+
     input_image = np.load(in_path).squeeze()
 
-    boundary = np.zeros((0, 2))
-
+    boundaries = []
     if out_path.exists():
-        boundary = np.load(out_path)
+        with np.load(out_path) as data:
+            for v in data.values():
+                boundaries.append(v)
+    else:
+        boundaries.append(np.zeros((0, 2)))
 
-    poly = Polygon(boundary[:, [1, 0]], animated=True, hatch='x', fill=False)
-
-    fig, ax = plt.subplots()
-    ax.imshow(input_image[1], clim=auto_clim(input_image[1]))
-    ax.add_patch(poly)
-    p = PolygonInteractor(ax, poly)
-
-    def on_key_press(event):
-        if event.key == 'w':
-            print(f"Save {out_path}")
-            tools.create_dir_for_path(out_path)
-            np.save(out_path, poly.xy[:, [1, 0]])
-        if event.key == 'x':
-            boundary, _ = find_boundary(input_image[1])
-            poly.set_xy(boundary[:, [1, 0]])
-            p.line.set_data(zip(*p.poly.xy))
-            p.canvas.draw_idle()
-    fig.canvas.mpl_connect('key_press_event', on_key_press)
+    for boundary in boundaries:
+        boundary_window(input_image, boundary)
 
     plt.show()
 
