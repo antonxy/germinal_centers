@@ -9,7 +9,7 @@ import argparse
 
 filename = sys.argv[1]
 
-parser = argparse.ArgumentParser(prog = 'blob_segmentation.py')
+parser = argparse.ArgumentParser(prog = 'viewer.py')
 parser.add_argument('in_filename')
 parser.add_argument('-d', '--downres', type=int, default=1)
 parser.add_argument('-c', '--clim_auto', action='store_true')
