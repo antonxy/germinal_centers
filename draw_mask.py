@@ -13,10 +13,6 @@ import scipy.ndimage as ndi
 import tools
 
 
-parser = argparse.ArgumentParser(prog = 'draw_mask.py')
-parser.add_argument('in_filename', nargs='*')
-args = parser.parse_args()
-
 def auto_clim(img):
     return np.percentile(img, (2, 98))
 
@@ -228,7 +224,7 @@ class PolygonInteractor:
 
 
 def process_image(in_path, out_path):
-    input_image = np.load(in_path)
+    input_image = np.load(in_path).squeeze()
 
     boundary = np.zeros((0, 2))
 
@@ -256,6 +252,20 @@ def process_image(in_path, out_path):
 
     plt.show()
 
-for filenames in tools.get_files(args.in_filename):
-    print(f"Processing {filenames.bg_sub}")
-    process_image(filenames.bg_sub, filenames.mask_polygon)
+
+def main():
+    parser = argparse.ArgumentParser(prog = 'draw_mask.py')
+    parser.add_argument('in_filename', nargs='*')
+    parser.add_argument('--only-new', action='store_true')
+    args = parser.parse_args()
+
+
+    for filenames in tools.get_files(args.in_filename):
+        if args.only_new and filenames.mask_polygon.exists():
+            continue
+        print(f"Processing {filenames.bg_sub}")
+        process_image(filenames.bg_sub, filenames.mask_polygon)
+
+
+if __name__ == '__main__':
+    main()

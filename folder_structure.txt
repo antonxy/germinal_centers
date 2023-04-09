@@ -2,9 +2,12 @@
 input/
 	<mouse line> <mouse number>/
 		<mouse line> <mouse number> <cutting number>.czi
+		<mouse line> <mouse number> <cutting number>/
+			mask_polygon.npy
+			selection.json
 
 processed/
 	<mouse line> <mouse number>/
 		<mouse line> <mouse number> <cutting number>/
 			background_subtracted.npy
-			mask_polygon.npy
+			metadata.json
