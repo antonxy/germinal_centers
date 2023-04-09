@@ -117,6 +117,7 @@ def process_image(in_path, out_path, metadata_path, downres_factor, debug):
     metadata = {
         'pixel_size_um': pixel_size * downres_factor,
         'pixel_size_original_um': pixel_size,
+        'downres_factor': downres_factor,
         'channels': reorder(channels)
     }
     tools.create_dir_for_path(metadata_path)
