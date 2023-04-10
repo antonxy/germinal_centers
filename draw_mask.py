@@ -285,10 +285,10 @@ def main():
     args = parser.parse_args()
 
 
-    for filenames in tools.get_files(args.in_filename):
+    for filenames in tools.get_section_files(args.in_filename):
         if args.only_new and filenames.mask_polygon.exists():
             continue
-        print(f"Processing {filenames.bg_sub}")
+        print(f"Processing {filenames.czi} section {filenames.section_nr}")
         process_image(filenames.bg_sub, filenames.mask_polygon)
 
 

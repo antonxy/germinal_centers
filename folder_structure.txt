@@ -1,13 +1,21 @@
 
 input/
-	<mouse line> <mouse number>/
-		<mouse line> <mouse number> <cutting number>.czi
-		<mouse line> <mouse number> <cutting number>/
+	whatever folders/
+		whatever filename.czi
+		whatever filename_sampleNumber/
 			mask_polygon.npz
-			selection.json
+			user_metadata.json
 
 processed/
-	<mouse line> <mouse number>/
-		<mouse line> <mouse number> <cutting number>/
+	whatever folders/
+		whatever filename_sampleNumber/
 			background_subtracted.npy
 			metadata.json
+
+
+
+
+Infos for analysis
+
+Hierarchy: Mouse line -> Mouse number -> (Organ ->) Sample ID
+Date of measurement (microscopy)

@@ -12,12 +12,12 @@ import json
 import pathlib
 import tools
 
-def process_image(in_path, out_path, metadata_path, downres_factor, debug):
+def process_image(in_path, section, out_path, metadata_path, downres_factor, debug):
 
     file = czifile.CziFile(in_path)
 
     def parse_metadata(metadata):
-        parsed = xmltodict.parse(file.metadata())
+        parsed = xmltodict.parse(metadata)
 
         pixel_size_str = parsed['ImageDocument']['Metadata']['ImageScaling']['ImagePixelSize']
         pixel_size_x, pixel_size_y = [float(x) for x in pixel_size_str.split(',')]
@@ -45,6 +45,8 @@ def process_image(in_path, out_path, metadata_path, downres_factor, debug):
     subblocks_by_channel = {}
     for block in file.filtered_subblock_directory:
         s = block.start
+        if s[0] != section:
+            continue
         key = s[1] # Channel
         if not key in subblocks_by_channel.keys():
             subblocks_by_channel[key] = []
@@ -72,16 +74,16 @@ def process_image(in_path, out_path, metadata_path, downres_factor, debug):
         return directory_entry.data_segment().data() - background
 
     def assemble_mosaic(blocks):
-        out = np.zeros(file.shape, file.dtype)
+        start = tools.czi_section_start(file, section)
+        shape = tools.czi_section_shape(file, section)
+        out = np.zeros(shape[1:], file.dtype)
 
         for channel, directory_entry in blocks:
             tile = subtract_background(directory_entry, background[channel])
+            assert tile.shape[0] == 1
             index = tuple(slice(i - j, i - j + k) for i, j, k in
-                          zip(directory_entry.start, file.start, tile.shape))
-            try:
-                out[index] = tile
-            except ValueError as e:
-                warnings.warn(str(e))
+                          zip(directory_entry.start[1:], start[1:], tile.shape[1:]))
+            out[index] = tile[0]
         return out
 
     assembled = assemble_mosaic(subblocks_with_channel)
@@ -137,12 +139,12 @@ def main():
 
     downres = 16
 
-    for filenames in tools.get_files(args.in_filename):
+    for filenames in tools.get_section_files(args.in_filename):
         if args.only_new and filenames.bg_sub.exists() and filenames.metadata.exists():
             continue
-        print(f"Processing {filenames.czi}")
+        print(f"Processing {filenames.czi} section {filenames.section_nr}")
         try:
-            process_image(filenames.czi, filenames.bg_sub, filenames.metadata, downres, args.debug)
+            process_image(filenames.czi, filenames.section_nr, filenames.bg_sub, filenames.metadata, downres, args.debug)
         except Exception as e:
             print(e)
             if not args.skip_fail:

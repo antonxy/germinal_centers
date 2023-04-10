@@ -223,10 +223,10 @@ def main():
     parser.add_argument('--store-debug', action='store_true')
     args = parser.parse_args()
 
-    for filenames in tools.get_files(args.in_filename):
+    for filenames in tools.get_section_files(args.in_filename):
         if args.only_new and filenames.blob_csv.exists():
             continue
-        print(f"Processing {filenames.bg_sub}")
+        print(f"Processing {filenames.czi} section {filenames.section_nr}")
         try:
             process_image(filenames.bg_sub, filenames.metadata, filenames.mask_polygon, filenames.blob_csv, args.show_debug, filenames.segmentation_debug if args.store_debug else None)
         except Exception as e:
