@@ -46,6 +46,10 @@ def get_section_files(czifiles = None, only_selected=False):
                             metadata = json.load(f)
                         if metadata['keep'] == True:
                             yield filenames
+                        else:
+                            print(f"File {source_file} not selected")
+                    else:
+                        print(f"File {source_file} has no metadata yet")
                 else:
                     yield filenames
         except Exception as e:
