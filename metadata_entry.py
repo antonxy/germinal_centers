@@ -94,6 +94,7 @@ def main():
     parser = argparse.ArgumentParser(prog = 'selection.py')
     parser.add_argument('in_filename', nargs='*')
     parser.add_argument('--only-new', action='store_true')
+    parser.add_argument('--skip-fail', action='store_true')
     parser.add_argument('-d', '--downres', type=int, default=16)
     args = parser.parse_args()
 
@@ -102,7 +103,12 @@ def main():
         if args.only_new and filenames.user_metadata.exists():
             continue
         print(f"Processing {filenames.czi} section {filenames.section_nr}")
-        process_image(filenames.czi, filenames.section_nr, filenames.user_metadata, args.downres)
+        try:
+            process_image(filenames.czi, filenames.section_nr, filenames.user_metadata, args.downres)
+        except Exception as e:
+            print(e)
+            if not args.skip_fail:
+                break
 
 
 if __name__ == '__main__':
