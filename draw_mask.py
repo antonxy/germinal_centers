@@ -11,6 +11,7 @@ import skimage
 import scipy
 import scipy.ndimage as ndi
 import tools
+import traceback
 
 
 def auto_clim(img):
@@ -282,6 +283,7 @@ def main():
     parser = argparse.ArgumentParser(prog = 'draw_mask.py')
     parser.add_argument('in_filename', nargs='*')
     parser.add_argument('--only-new', action='store_true')
+    parser.add_argument('--skip-fail', action='store_true')
     args = parser.parse_args()
 
 
@@ -289,7 +291,12 @@ def main():
         if args.only_new and filenames.mask_polygon.exists():
             continue
         print(f"Processing {filenames.czi} section {filenames.section_nr}")
-        process_image(filenames.bg_sub, filenames.mask_polygon)
+        try:
+            process_image(filenames.bg_sub, filenames.mask_polygon)
+        except Exception as e:
+            traceback.print_exc()
+            if not args.skip_fail:
+                break
 
 
 if __name__ == '__main__':
