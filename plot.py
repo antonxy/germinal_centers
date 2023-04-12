@@ -7,27 +7,37 @@ import argparse
 from pathlib import Path
 import seaborn as sns
 import tools
+import traceback
+import json
 
 def main():
     parser = argparse.ArgumentParser(prog = 'plot.py')
     parser.add_argument('in_filename', type=Path, nargs='*')
     parser.add_argument('--skip-missing', action='store_true')
+    parser.add_argument('--skip-fail', action='store_true')
     args = parser.parse_args()
 
     dfs = []
 
-    for filenames in tools.get_files(args.in_filename):
-        fp = filenames.blob_csv
-        if args.skip_missing and not fp.exists():
-            continue
-        # Maybe move all this to tools.py
-        outer_folder = fp.parent.parent.name
-        inner_folder = fp.parent.name
-        data = pd.read_csv(fp)
-        data['mouse'] = outer_folder
-        data['cutting'] = inner_folder
-        data['line'] = outer_folder.split(' ')[0]
-        dfs.append(data)
+    for filenames in tools.get_section_files(args.in_filename, only_selected=True):
+        try:
+            with open(filenames.user_metadata, 'r') as f:
+                metadata = json.load(f)
+            fp = filenames.blob_csv
+            if args.skip_missing and not fp.exists():
+                continue
+            # Maybe move all this to tools.py
+            outer_folder = fp.parent.parent.name
+            inner_folder = fp.parent.name
+            data = pd.read_csv(fp)
+            data['mouse'] = metadata['mouse_number']
+            data['cutting'] = fp.parent.name
+            data['line'] = metadata['mouse_line']
+            dfs.append(data)
+        except Exception as e:
+            traceback.print_exc()
+            if not args.skip_fail:
+                return
 
     data = pd.concat(dfs)
 
