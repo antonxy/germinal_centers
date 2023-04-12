@@ -223,7 +223,7 @@ def main():
     parser.add_argument('--store-debug', action='store_true')
     args = parser.parse_args()
 
-    for filenames in tools.get_section_files(args.in_filename):
+    for filenames in tools.get_section_files(args.in_filename, only_selected=True):
         if args.only_new and filenames.blob_csv.exists():
             continue
         print(f"Processing {filenames.czi} section {filenames.section_nr}")

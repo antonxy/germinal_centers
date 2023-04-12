@@ -141,7 +141,7 @@ def main():
 
     downres = 16
 
-    for filenames in tools.get_section_files(args.in_filename):
+    for filenames in tools.get_section_files(args.in_filename, only_selected=True):
         if args.only_new and filenames.bg_sub.exists() and filenames.metadata.exists():
             continue
         print(f"Processing {filenames.czi} section {filenames.section_nr}")

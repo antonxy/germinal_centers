@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 import czifile
+import json
 
 data_path = Path('/opt/daria_microscopy/')
 source_directory = data_path / Path('input')
@@ -27,18 +28,29 @@ class SectionFilenames:
         self.blob_csv = processed_subdir / Path('blobs.csv')
         self.segmentation_debug = processed_subdir / Path('segmentation_debug')
 
-
-def get_section_files(czifiles = None):
+def get_section_files(czifiles = None, only_selected=False):
     if czifiles == None or len(czifiles) == 0:
         source_files = [source_file.relative_to(source_directory) for source_file in source_directory.glob('**/*.czi') if not source_file.name.startswith('.')]
     else:
         source_files = [Path(f).relative_to(source_directory) for f in czifiles]
 
     for source_file in source_files:
-        file = czifile.CziFile(source_directory / source_file)
-        num_sections = file.shape[0]
-        for section in range(num_sections):
-            yield SectionFilenames(source_file, section)
+        try:
+            file = czifile.CziFile(source_directory / source_file)
+            num_sections = file.shape[0]
+            for section in range(num_sections):
+                filenames = SectionFilenames(source_file, section)
+                if only_selected:
+                    if filenames.user_metadata.exists():
+                        with open(filenames.user_metadata, 'r') as f:
+                            metadata = json.load(f)
+                        if metadata['keep'] == True:
+                            yield filenames
+                else:
+                    yield filenames
+        except Exception as e:
+            print(f"Failed to read file {source_file}, skipping")
+            print(e)
 
 
 def create_dir_for_path(path):
