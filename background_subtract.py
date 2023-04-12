@@ -24,6 +24,7 @@ def process_image(in_path, section, out_path, metadata_path, downres_factor, deb
         assert pixel_size_x == pixel_size_y
 
         channels = parsed['ImageDocument']['Metadata']['Information']['Image']['Dimensions']['Channels']['Channel']
+        acquisitionDate = parsed['ImageDocument']['Metadata']['Information']['Image']['AcquisitionDateAndTime']
 
         channels_recs = []
         for channel in channels:
@@ -32,9 +33,9 @@ def process_image(in_path, section, out_path, metadata_path, downres_factor, deb
             exp_time = channel['ExposureTime']
             light_intensity = channel['LightSourcesSettings']['LightSourceSettings']['Intensity']
             channels_recs.append({'id': channel_id, 'name': channel_name, 'exp_time': exp_time, 'light_intensity': light_intensity})
-        return channels_recs, pixel_size_x
+        return channels_recs, pixel_size_x, acquisitionDate 
 
-    channels, pixel_size = parse_metadata(file.metadata())
+    channels, pixel_size, acquisitionDate = parse_metadata(file.metadata())
 
     # Check that the order of dimensions in the file is as assumed
     print(f"{file.axes=}")
@@ -120,7 +121,8 @@ def process_image(in_path, section, out_path, metadata_path, downres_factor, deb
         'pixel_size_um': pixel_size * downres_factor,
         'pixel_size_original_um': pixel_size,
         'downres_factor': downres_factor,
-        'channels': reorder(channels)
+        'channels': reorder(channels),
+        'acquisition_date ': acquisitionDate 
     }
     tools.create_dir_for_path(metadata_path)
     with open(metadata_path, 'w') as f:

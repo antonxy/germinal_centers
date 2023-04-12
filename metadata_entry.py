@@ -82,7 +82,7 @@ def process_image(in_path, section, out_path, downres):
 
         metadata['mouse_line'] = ask_value("Mouse line?", guessed_mouse_line)
         metadata['mouse_number'] = ask_value("Mouse number?", guessed_mouse_number)
-        metadata['measurement_date'] = ask_date("Measurement date?")
+        #metadata['measurement_date'] = ask_date("Measurement date?") # We can get it from czi metadata
         metadata['czifile'] = str(in_path)
         metadata['section'] = section
 
