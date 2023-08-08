@@ -17,7 +17,7 @@ import traceback
 def auto_clim(img):
     return np.percentile(img, (2, 98))
 
-def find_boundary(channel):
+def find_boundary(channel, erosion=40):
     # Blur the image to ignore small lines and stuff
     blur = skimage.filters.gaussian(channel, sigma=10)
 
@@ -29,7 +29,6 @@ def find_boundary(channel):
     filled = scipy.ndimage.binary_fill_holes(thresholded)
     
     # reduce size of contour at edges so that we are for sure inside the cutting
-    erosion = 40
     eroded = skimage.morphology.binary_erosion(filled, skimage.morphology.disk(erosion))
 
     labels, num_labels = ndi.label(eroded)
@@ -254,6 +253,11 @@ def process_image(in_path, out_path):
                 poly.set_xy(boundary[:, [1, 0]])
                 p.line.set_data(zip(*p.poly.xy))
                 p.canvas.draw_idle()
+            if event.key == 'm':
+                boundary, _ = find_boundary(input_image[1], erosion=20)
+                poly.set_xy(boundary[:, [1, 0]])
+                p.line.set_data(zip(*p.poly.xy))
+                p.canvas.draw_idle()
             if event.key == '+':
                 boundary_window(image, np.zeros((0, 2)))
                 plt.show()
@@ -287,7 +291,10 @@ def main():
     args = parser.parse_args()
 
 
-    for filenames in tools.get_section_files(args.in_filename):
+    for filenames in tools.get_section_files(args.in_filename, only_selected=True):
+        if not filenames.bg_sub.exists():
+            print(f"Background subtraction file does not exist for {filenames.czi} section {filenames.section_nr}, skipping")
+            continue
         if args.only_new and filenames.mask_polygon.exists():
             continue
         print(f"Processing {filenames.czi} section {filenames.section_nr}")

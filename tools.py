@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import czifile
 import json
+import traceback
 
 data_path = Path('/opt/daria_microscopy/')
 source_directory = data_path / Path('input')
@@ -22,6 +23,7 @@ class SectionFilenames:
 
         self.mask_polygon = source_subdir / Path('mask_polygons.npz')
         self.user_metadata = source_subdir / Path('user_metadata.json')
+        self.manual_blobs = source_subdir / Path('manual_blobs.npz')
 
         self.bg_sub = processed_subdir / Path('background_subtracted.npy')
         self.metadata = processed_subdir / Path('metadata.json')
@@ -32,12 +34,12 @@ def get_section_files(czifiles = None, only_selected=False):
     if czifiles == None or len(czifiles) == 0:
         source_files = [source_file.relative_to(source_directory) for source_file in source_directory.glob('**/*.czi') if not source_file.name.startswith('.')]
     else:
-        source_files = [Path(f).relative_to(source_directory) for f in czifiles]
+        source_files = [Path(f).resolve().relative_to(source_directory) for f in czifiles]
 
     for source_file in source_files:
         try:
             file = czifile.CziFile(source_directory / source_file)
-            num_sections = file.shape[0]
+            num_sections = czi_get_num_sections(file)
             for section in range(num_sections):
                 filenames = SectionFilenames(source_file, section)
                 if only_selected:
@@ -54,7 +56,7 @@ def get_section_files(czifiles = None, only_selected=False):
                     yield filenames
         except Exception as e:
             print(f"Failed to read file {source_file}, skipping")
-            print(e)
+            traceback.print_exc()
 
 
 def create_dir_for_path(path):
@@ -74,8 +76,21 @@ def czi_section_start(self, section):
              if directory_entry.start[0] == section ]
     start = tuple(np.min(start, axis=0))
     return start
+    
+def czi_get_num_sections(self):
+    if self.axes == "SCYX0":
+        return self.shape[0]
+    elif self.axes == "CYX0":
+        return 1
+    else:
+        raise RuntimeError(f"Unknown file layout: {self.axes=}")
 
 def czi_read_section(file, section):
+    if file.axes == "CYX0":
+        return file.asarray()
+    
+    assert file.axes == "SCYX0"
+
     start = czi_section_start(file, section)
     shape = czi_section_shape(file, section)
     out = np.zeros(shape[1:], file.dtype)

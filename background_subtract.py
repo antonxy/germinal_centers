@@ -11,6 +11,7 @@ import xmltodict
 import json
 import pathlib
 import tools
+import traceback
 
 def process_image(in_path, section, out_path, metadata_path, downres_factor, debug):
 
@@ -148,7 +149,7 @@ def main():
         try:
             process_image(filenames.czi, filenames.section_nr, filenames.bg_sub, filenames.metadata, downres, args.debug)
         except Exception as e:
-            print(e)
+            traceback.print_exc()
             if not args.skip_fail:
                 break
 

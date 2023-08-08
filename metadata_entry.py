@@ -9,6 +9,7 @@ import argparse
 import json
 import tools
 import datetime
+import traceback
 
 def ask_selection(question, options):
     while True:
@@ -36,8 +37,11 @@ def ask_date(question):
 
 def process_image(in_path, section, out_path, downres):
     file = czifile.CziFile(in_path)
+    print(f"{file.shape=}")
+    print(f"{file.axes=}")
     
     fullres = tools.czi_read_section(file, section)
+    print(f"{fullres.shape=}")
     fullres = fullres.squeeze()
 
     downres_factor = downres
@@ -51,7 +55,7 @@ def process_image(in_path, section, out_path, downres):
             plt.close('all')
 
     ax1 = None
-    for i in range(4):
+    for i in range(fullres.shape[0]):
         fig = plt.figure()
         ax = fig.add_subplot(111, sharex=ax1, sharey=ax1)
         cid = fig.canvas.mpl_connect('key_press_event', onkey)
@@ -106,7 +110,7 @@ def main():
         try:
             process_image(filenames.czi, filenames.section_nr, filenames.user_metadata, args.downres)
         except Exception as e:
-            print(e)
+            traceback.print_exc()
             if not args.skip_fail:
                 break
 
